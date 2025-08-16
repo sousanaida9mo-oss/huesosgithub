@@ -259,6 +259,7 @@ def _build_application() -> "Application":
         Application.builder()
         .token(TOKEN)
         .get_updates_request(request)
+        .post_init(post_init)  
         .request(request)
         .build()
     )
@@ -2234,8 +2235,11 @@ async def set_bot_commands(bot: Bot):
         BotCommand(command="stop", description="IMAP: остановить чтение"),
     ]
     await bot.set_my_commands(commands)
+    
+async def post_init(application: Application):
+    await set_bot_commands(application.bot)
 
-async def main() -> None:
+def main() -> None:
     application = _build_application()
 
     conv_handler = ConversationHandler(
@@ -2244,12 +2248,12 @@ async def main() -> None:
             SELECT_ACTION: [CallbackQueryHandler(button_handler)],
             EDIT_FILE: [
                 MessageHandler(filters.TEXT | filters.Document.ALL, edit_file_content),
-                CommandHandler('cancel', cancel)
+                CommandHandler('cancel', cancel),
             ],
             INPUT_PARAMS: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, run_smtp_sender),
-                CommandHandler('cancel', cancel)
-            ]
+                CommandHandler('cancel', cancel),
+            ],
         },
         fallbacks=[CommandHandler('cancel', cancel)],
     )
@@ -2257,5 +2261,7 @@ async def main() -> None:
     application.add_handler(conv_handler)
     application.add_error_handler(error_handler)
 
-    # Лонг‑поллинг: timeout должен быть меньше read_timeout выше
     application.run_polling(timeout=60, drop_pending_updates=False)
+
+if __name__ == "__main__":
+    main()
